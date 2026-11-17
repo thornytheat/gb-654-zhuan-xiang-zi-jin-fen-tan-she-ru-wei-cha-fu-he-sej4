@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% block content %}
+<div class="grid module-7">
+<section class="panel panel--primary">
+  <div class="panel__head"><h2>承诺与来源占用对账</h2><span class="panel__meta">M7 · {{ data.ledger_id }} · rev_seq {{ data.rev_seq|default(0) }}</span></div>
+  <div class="panel__body panel__body--scroll">
+    <table class="ledger">
+      <thead><tr><th>承诺</th><th>项目</th><th>承诺金额</th><th>已覆盖</th><th>缺口</th><th>来源占用（锁定/撤销）</th><th>缺口原因</th></tr></thead>
+      <tbody>
+      {% for c in data.commitments %}
+        <tr>
+          <td>{{ c.commitment_id }}</td><td>{{ c.project_id }}</td>
+          <td class="num">{{ c.committed }}</td><td class="num">{{ c.covered }}</td>
+          <td class="num">{{ c.gap }}</td>
+          <td class="num">{% for o in c.occupations %}{{ o.source_id }}={{ o.amount }}{% if o.locked %} 🔒{% endif %}{% if o.revoked %} ⛔{% endif %}{% if not loop.last %}；{% endif %}{% endfor %}</td>
+          <td>{{ c.gap_reason or 'OK' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="2">合计</td><td class="num">{{ data.totals.committed }}</td><td class="num">{{ data.totals.covered }}</td><td class="num">{{ data.totals.gap }}</td><td colspan="2">承诺不削减，不足计缺口</td></tr></tfoot>
+    </table>
+  </div>
+</section>
+<div class="stack">
+<section class="panel">
+  <div class="panel__head"><h2>来源余额</h2><span class="panel__meta">封顶 / 占用 / 可用</span></div>
+  <div class="panel__body panel__body--scroll">
+    <table class="ledger"><thead><tr><th>来源</th><th>封顶</th><th>占用</th><th>可用</th><th>状态</th></tr></thead><tbody>
+    {% for s in data.sources %}<tr><td>{{ s.source_id }}</td><td class="num">{{ s.cap }}</td><td class="num">{{ s.occupied }}</td><td class="num">{{ s.available }}</td><td>{% if s.revoked %}已撤销{% elif s.locked %}已锁定{% else %}开放{% endif %}</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</section>
+<section class="panel">
+  <div class="panel__head"><h2>撤销前后记录</h2><span class="panel__meta">事件只增不改</span></div>
+  <div class="panel__body panel__body--scroll">
+    <table class="ledger"><thead><tr><th>seq</th><th>动作</th><th>承诺</th><th>来源</th><th>金额</th><th>前</th><th>后</th><th>原因</th></tr></thead><tbody>
+    {% for e in data.events %}<tr><td>{{ e.rev_seq }}</td><td>{{ e.action }}</td><td>{{ e.commitment_id or '-' }}</td><td>{{ e.source_id or '-' }}</td><td class="num">{{ e.amount or '-' }}</td><td class="num">{{ e.before }}</td><td class="num">{{ e.after }}</td><td>{{ e.reason_code }}</td></tr>{% else %}<tr><td colspan="8">暂无撤销事件</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</section>
+<section class="panel">
+  <div class="panel__head"><h2>本次动作</h2><span class="panel__meta">/api/coverage/revoke</span></div>
+  <div class="panel__body">
+    <button class="btn btn--primary" id="revoke-btn">撤销来源 S1（示例）</button>
+    <pre class="result" id="coverage-result">等待运行</pre>
+  </div>
+</section>
+</div>
+</div>
+<script>
+document.querySelector("#revoke-btn")?.addEventListener("click", async () => {
+  const out = document.querySelector("#coverage-result");
+  out.textContent = "运行中";
+  try {
+    const res = await fetch("/api/coverage/revoke", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ledger_id: "{{ data.ledger_id }}", source_id: "S1", idempotency_key: "demo-revoke-s1-" + Date.now() })
+    });
+    out.textContent = JSON.stringify(await res.json(), null, 2);
+  } catch (e) { out.textContent = "请求失败，请重试"; }
+});
+</script>
+{% endblock %}

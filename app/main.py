@@ -10,6 +10,7 @@ from .modules.m3_weights import handler as m3_handler
 from .modules.m4_allocations import handler as m4_handler
 from .modules.m5_remainders import handler as m5_handler
 from .modules.m6_runs import handler as m6_handler
+from .modules.m7_coverage import handler as m7_handler
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
@@ -18,7 +19,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = Store(settings.db_path)
     app.state.templates = web.templates
     app.mount("/static", StaticFiles(directory=str(web.BASE / "static")), name="static")
-    for module in (m1_handler, m2_handler, m3_handler, m4_handler, m5_handler, m6_handler,):
+    for module in (m1_handler, m2_handler, m3_handler, m4_handler, m5_handler, m6_handler, m7_handler,):
         app.include_router(module.router)
     install(app)
     @app.get("/api/health")
